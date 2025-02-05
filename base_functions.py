@@ -7,6 +7,11 @@ import arviz as az
 from tabulate import tabulate
 import random
 import seaborn as sns
+import logging
+
+# Suppress PyMC3 logging messages
+logger = logging.getLogger("pymc")
+logger.propagate = False  # Suppress info and warning messages
 
 def fit_pymc(samples, success):
   '''
@@ -89,7 +94,7 @@ def evaluate_randomness(betting_log):
 
     # PERFORMS SIMULATIONS WITH NUMPY
     # 1. Extracts key variables
-    trials = 5000
+    trials = 10000
     bets_per_trial = len(betting_log)
     total_pl = betting_log['Profit/Loss'].sum()
 
@@ -102,7 +107,7 @@ def evaluate_randomness(betting_log):
     random_draws = np.random.rand(trials, bets_per_trial)
     wins = random_draws < probabilities
     profits = np.where(wins, odds_locked - 1, -1)
-    final_profits = (profits.sum(axis=1) / bets_per_trial)*100  # Computes mean profit per trial
+    final_profits = (profits.sum(axis=1) / bets_per_trial)*100  # Computes mean profit per trial for all trials
 
     # CALCULATES KEY METRICS
     # 1. Calculates mean and 95% confidence interval
@@ -151,4 +156,4 @@ def summarize_results(seasons, betting_log):
   evaluate_randomness(betting_log)
 
 def test_script():
-    print('Script imported successfully!')
+    print('Script containing strategy evaluation functions imported successfully!')
