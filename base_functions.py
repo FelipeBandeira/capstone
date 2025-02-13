@@ -11,7 +11,8 @@ import logging
 
 # Suppress PyMC3 logging messages
 logger = logging.getLogger("pymc")
-logger.propagate = False  # Suppress info and warning messages
+logger.propagate = False 
+logger.setLevel(logging.ERROR)
 
 def fit_pymc(samples, success):
   '''
@@ -23,15 +24,16 @@ def fit_pymc(samples, success):
     x = pm.Binomial('x', n=samples, p=p, observed=success) # Likelihood
 
   with model:
-    inference = pm.sample(progressbar=False)
+    inference = pm.sample(progressbar=False, chains = 4, draws = 2000)
 
   # Stores key variables
   mean = az.summary(inference, hdi_prob = 0.95)['mean'].values[0]
   lower = az.summary(inference, hdi_prob = 0.95)['hdi_2.5%'].values[0]
   upper = az.summary(inference, hdi_prob = 0.95)['hdi_97.5%'].values[0]
+  posterior_samples = inference.posterior['p'].values.flatten()
 
   #print(f'  PyMC results for p: {mean} ({lower}, {upper})\n')
-  return mean, [lower, upper]
+  return mean, [lower, upper], posterior_samples
 
 def summarize_season_results(seasons, betting_log):
   '''
@@ -53,7 +55,7 @@ def summarize_season_results(seasons, betting_log):
     # Performing additional calculations
     profit = (season_pl/bets_placed) * 100
     RBEP = 1/median_odds
-    sharpness_mean, sharpness_ci = fit_pymc(bets_placed, successful_bets)
+    sharpness_mean, sharpness_ci, _ = fit_pymc(bets_placed, successful_bets)
 
     # Storing data for each season
     data.append([season, bets_placed, successful_bets, sharpness_ci, round(sharpness_mean, 2), round(RBEP, 2), round(profit, 2)])
@@ -61,6 +63,7 @@ def summarize_season_results(seasons, betting_log):
   # Reporting all results
   headers = ['Season', 'Bets Placed', 'Successful Bets', 'Sharpness CI', 'Sharpness Mean', 'RBEP', 'Profit (%)']
   print(tabulate(data, headers=headers, tablefmt="fancy_grid", colalign=("center",) * len(headers)))
+
 
 def summarize_complete_results(betting_log):
   '''
@@ -78,14 +81,16 @@ def summarize_complete_results(betting_log):
   # Performing additional calculations
   profit = (total_pl/bets_placed)*100
   RBEP = 1/median_odds
-  sharpness_mean, sharpness_ci = fit_pymc(bets_placed, successful_bets)
+  sharpness_mean, sharpness_ci, posterior_samples = fit_pymc(bets_placed, successful_bets)
 
   # Reporting results
   data.append(['Whole period', bets_placed, successful_bets, sharpness_ci, round(sharpness_mean, 2), round(RBEP, 2), round(profit, 2)])
   headers = ['Season', 'Bets Placed', 'Successful Bets', 'Sharpness CI', 'Sharpness Mean', 'RBEP', 'Profit (%)']
   print(tabulate(data, headers=headers, tablefmt="fancy_grid", colalign=("center",) * len(headers)))
 
-def evaluate_randomness(betting_log):
+  return posterior_samples
+
+def evaluate_randomness(betting_log, plot_title):
     '''
     This function creates a Monte Carlo simulation over the bets placed during backtest by a strategy to evaluate the impact of
     randomness on possible financial outcomes. It uses Numpy arrays, rather than loops, to increase the speed of each trial,
@@ -129,7 +134,7 @@ def evaluate_randomness(betting_log):
     plt.axvline(upper_bound, color='red', linestyle='dashed', linewidth=2, label=f'95% Upper Bound: {upper_bound:.2f}%')
     plt.xlabel('Profit (%)', fontsize=12)
     plt.ylabel('Count', fontsize=12)
-    plt.title('Distribution of Alternative Profits', fontsize=14)
+    plt.title(f'Distribution of Alternative Profits: {plot_title}', fontsize=14)
     plt.legend()
     plt.grid(True)
     plt.show()
@@ -141,7 +146,7 @@ def evaluate_randomness(betting_log):
     print(f'  Probability of ending better off than in the backtest: {p_better_than_backtest:.2f}%')
     print(f'  Probability of ending with a loss: {p_loss:.2f}%')
 
-def summarize_results(seasons, betting_log):
+def summarize_results(seasons, betting_log, strategy_name):
   '''
   This function gathers the call of each individual evaluation function, de-cluttering future lines of code
   '''
@@ -150,10 +155,12 @@ def summarize_results(seasons, betting_log):
   summarize_season_results(seasons, betting_log)
 
   print('\nOverall results')
-  summarize_complete_results(betting_log)
+  posterior_samples = summarize_complete_results(betting_log)
 
   print()
-  evaluate_randomness(betting_log)
+  evaluate_randomness(betting_log, strategy_name)
+
+  return posterior_samples
 
 def test_script():
-    print('Script containing strategy evaluation functions imported successfully!')
+    print('Script containing strategy evaluation functions were imported successfully!')
