@@ -123,6 +123,7 @@ def evaluate_randomness(betting_log, plot_title):
     # 2. Calculates key stats compared to backtest
     p_better_than_backtest = (sum(final_profits > profit_in_backtest)/trials) * 100
     p_loss = (sum(final_profits < 0)/trials) * 100
+    p_greater_than_safe_investment = (sum(final_profits > 10)/trials) * 100
 
     # DISPLAYS RESULTS
     #1. Creates plot for easy visualization
@@ -145,6 +146,7 @@ def evaluate_randomness(betting_log, plot_title):
     print(f'  95% interval of profit: [{lower_bound:.2f}%, {upper_bound:.2f}%]')
     print(f'  Probability of ending better off than in the backtest: {p_better_than_backtest:.2f}%')
     print(f'  Probability of ending with a loss: {p_loss:.2f}%')
+    print(f'  Probability of ending better off than safe investment: {p_greater_than_safe_investment:.2f}%')
 
 def summarize_results(seasons, betting_log, strategy_name):
   '''
